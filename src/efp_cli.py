@@ -33,7 +33,7 @@ def cli_main():
                 remove(p._database_name)
                 remove(f"data_{args.year}.gz")
         except KeyError:
-            print(f"Invalid Date '{args.year}'\n"\
+            print(f"Invalid Date '{args.year}'\n"
                   "Date must be an election (even) year between 1980 and 2014")
 
 

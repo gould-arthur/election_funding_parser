@@ -6,7 +6,7 @@ Date: 2024-03-07
 
 Data citation:
         Bonica, Adam, 2015, "Database on Ideology, Money in Politics, and Elections (DIME)",
-        https://doi.org/10.7910/DVN/O5PX0B, Harvard Dataverse, V3 
+        https://doi.org/10.7910/DVN/O5PX0B, Harvard Dataverse, V3
 """
 # minimizing imports as much as possible
 from requests import get as req_get
@@ -15,14 +15,11 @@ from gzip import open as gz_open
 # did not use pandas to limit imports
 
 
-FIELDS = {
-    "amount": "INTEGER", "bonica_cid": "INTEGER", "contributor_cfscore": "FLOAT",
-    "candidate_cfscore": "FLOAT", "transaction_id": "TEXT PRIMARY KEY"
-    }
+FIELDS = {"amount": "INTEGER", "bonica_cid": "INTEGER", "contributor_cfscore": "FLOAT",
+          "candidate_cfscore": "FLOAT", "transaction_id": "TEXT PRIMARY KEY"}
 
 
-URLS = {
-        1980: "OQQ2NW",
+URLS = {1980: "OQQ2NW",
         1982: "CUDWEU",
         1984: "WDLQE5",
         1986: "JFDKGE",
@@ -39,12 +36,11 @@ URLS = {
         2008: "JHLIEZ",
         2010: "NXTDHV",
         2012: "YQGIZJ",
-        2014: "HDZZO7"
-
-    }
+        2014: "HDZZO7"}
 
 
-DATE_TO_URLS = lambda year: f"https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/O5PX0B/{URLS[year]}"
+DATE_TO_URLS = lambda year: f"https://dataverse.harvard.edu/api/access/"\
+                            f"datafile/:persistentId?persistentId=doi:10.7910/DVN/O5PX0B/{URLS[year]}"
 
 
 class Populator:
@@ -53,16 +49,15 @@ class Populator:
 
 
     Args:
-        database_name: str      - the database to which the Populator will create/connect. 
+        database_name: str      - the database to which the Populator will create/connect.
                                     Default: "base_populated.db"
         forced_download: bool   - determines whether the zipped data will be downloaded should
                                     it already exit. Default: False
-    
+
     Raises:
         ConnectionError:        - Occures when attempting to download gzip data returns code
                                     signifying Non-success
     """
-
 
     def __init__(self, database_name: str = "base_populated.db", ignore_existing: bool = False):
         self._database_name = database_name
@@ -94,7 +89,7 @@ class Populator:
 
         Args:
             filename: str       - the filename for which to check
-        
+
         Returns:
             (bool)              - True if file should be downloaded, False otherwise
         """
@@ -131,7 +126,7 @@ class Populator:
         Args:
             year: int           - the year for which to download data
             filename: str       - name for which to store the file
-        
+
         Raises:
             KeyError:           - Occures when an invalid or unsupported year is passed
             ConnectionError     - Occures when gzipped file fails to download
@@ -150,7 +145,7 @@ class Populator:
         """
         for i in range(len(data)):
             data[i] = data[i].decode("utf-8").replace("\" ", "\"").replace("\"", "").\
-                        strip().replace(", ", ". ").split(',')
+                strip().replace(", ", ". ").split(',')
 
     def _insert_data(self, column_number: int, data: list, table_name: str = "DONATIONS"):
         """
@@ -171,7 +166,7 @@ class Populator:
         for line in data:
             try:
                 self._cur.execute(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", line)
-            except ProgrammingError as e:
+            except ProgrammingError:
                 # only so much data cleaning for version 1
                 err_log.write(f"Malformed Data: ::: {line} :::\n")
         err_log.close()
