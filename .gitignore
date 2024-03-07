@@ -8,3 +8,4 @@
 !src
 !src/efp_populator.py
 !src/efp_cli.py
+!src/__init__.py
