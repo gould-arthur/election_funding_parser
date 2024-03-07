@@ -1,0 +1,7 @@
+# operates as a whitelist instead of blacklist
+
+*
+!.
+!efp_populator.py
+!README.md
+!.gitignore
