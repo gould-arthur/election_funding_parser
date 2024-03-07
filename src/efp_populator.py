@@ -64,9 +64,9 @@ class Populator:
     """
 
 
-    def __init__(self, database_name: str = "base_populated.db", force_download: bool = False):
+    def __init__(self, database_name: str = "base_populated.db", ignore_existing: bool = False):
         self._database_name = database_name
-        self._force_download = force_download
+        self._force_download = ignore_existing
 
     def populate(self, year: int) -> None:
         """
@@ -83,10 +83,10 @@ class Populator:
         with gz_open(filename, "r") as fd:
             lines = fd.readline().decode('utf-8')
             column_number = self._create_table(lines)
-            lines = fd.readlines(500)
+            lines = fd.readlines()
             while lines:
                 self._insert_data(column_number, lines)
-                lines = fd.readlines(500)
+                lines = fd.readlines()
 
     def _check_if_download(self, filename: str) -> bool:
         """
@@ -136,7 +136,7 @@ class Populator:
             KeyError:           - Occures when an invalid or unsupported year is passed
             ConnectionError     - Occures when gzipped file fails to download
         """
-        result = req_get(DATE_TO_URLS(1980), stream=True)
+        result = req_get(DATE_TO_URLS(year), stream=True)
         if result.status_code > 299:
             raise ConnectionError(f"Cannot Download information for year {year}")
         with open(filename, "wb") as fd:

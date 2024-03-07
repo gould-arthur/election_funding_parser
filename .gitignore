@@ -2,6 +2,8 @@
 
 *
 !.
-!efp_populator.py
 !README.md
 !.gitignore
+
+!src
+!src/efp_populator.py
