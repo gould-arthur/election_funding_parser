@@ -16,7 +16,14 @@ with Populator() as p:
     p.populate(2000)  # populates the database with information from the year 2000
 ```
 And the open-close format
+```python
+from efp_populator import Populator
 
+p = Populator()
+p.open()
+p.populate(2000)
+p.close()
+```
 
 ### Future Functionality
 - CommandLine interface to pull specific year data into database
