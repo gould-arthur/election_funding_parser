@@ -76,10 +76,10 @@ class Populator:
         with gz_open(filename, "r") as fd:
             lines = fd.readline().decode('utf-8')
             column_number = self._create_table(lines)
-            lines = fd.readlines()
+            lines = fd.readlines(5000 if self._low_memory else -1)
             while lines:
                 self._insert_data(column_number, lines)
-                lines = fd.readlines()
+                lines = fd.readlines(5000 if self._low_memory else -1)
 
     def _check_if_download(self, filename: str) -> bool:
         """
