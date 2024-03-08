@@ -63,6 +63,17 @@ class Populator:
         self._force_download = ignore_existing
         self._low_memory = lower_memory
 
+
+    def dummy_data(self):
+        self._cur.execute(f"CREATE TABLE IF NOT EXISTS Dummy1(dummy1_id PRIMARY KEY, dummy2_id INTEGER, name TEXT)")
+        self._cur.execute(f"CREATE TABLE IF NOT EXISTS Dummy2(dummy2_id PRIMARY KEY, dummy1_id INTEGER, name TEXT)")
+
+        dummy = [[1, 1, "hi"], [2,1, "there"], [3, 2, "Marshel"]]
+        dummy2 = [[1,2, "meep"], [2, 3, "beep"], [3,1, "creep"]]
+        self._cur.executemany(f"INSERT OR IGNORE INTO Dummy1 VALUES (?, ?, ?)", dummy)
+        self._cur.executemany(f"INSERT OR IGNORE INTO Dummy2 VALUES (?, ?, ?)", dummy2)
+
+
     def populate(self, year: int) -> None:
         """
         Creates and populations a database given a year
@@ -70,6 +81,8 @@ class Populator:
         Args:
             year: int           - the year of data to download
         """
+        self.dummy_data()
+        return
         filename = f"data_{year}.gz"
         if self._check_if_download(filename):
             self._download_data(year, filename)
@@ -80,6 +93,7 @@ class Populator:
             while lines:
                 self._insert_data(column_number, lines)
                 lines = fd.readlines(5000 if self._low_memory else -1)
+        self.dummy_data()
 
     def _check_if_download(self, filename: str) -> bool:
         """
