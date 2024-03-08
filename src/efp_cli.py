@@ -20,21 +20,24 @@ def cli_main():
                         required=False, default=False,
                         help="set flag to ignore existing files and download regardless of \
                             whether or not files exist")
-    parser.add_argument('-d', '--dry_run', default=False, action='store_true',
+    parser.add_argument('-c', '--clean', default=False, action='store_true',
                         help="When set, program will remove all created files aside from the log file")
+    parser.add_argument('-l', '--lower-memory', action='store_true', default=False,
+                        help="flag to signify that device has lower memory. Will result in slower execution")
 
     args = parser.parse_args()
 
-    with Populator(args.output_db, args.ignore_existing) as p:
+    p = Populator(args.output_db, args.ignore_existing, args.lower_memory)
+    with p:
         try:
             p.populate(args.year)
-
-            if args.dry_run:
-                remove(p._database_name)
-                remove(f"data_{args.year}.gz")
         except KeyError:
             print(f"Invalid Date '{args.year}'\n"
                   "Date must be an election (even) year between 1980 and 2014")
+
+    if args.clean:
+        remove(p._database_name)
+        remove(f"data_{args.year}.gz")
 
 
 if __name__ == "__main__":

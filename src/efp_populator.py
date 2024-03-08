@@ -10,10 +10,8 @@ Data citation:
 """
 # minimizing imports as much as possible
 from requests import get as req_get
-from sqlite3 import connect, ProgrammingError
+from sqlite3 import connect
 from gzip import open as gz_open
-# did not use pandas to limit imports
-
 
 FIELDS = {"amount": "INTEGER", "bonica_cid": "INTEGER", "contributor_cfscore": "FLOAT",
           "candidate_cfscore": "FLOAT", "transaction_id": "TEXT PRIMARY KEY"}
@@ -59,9 +57,11 @@ class Populator:
                                     signifying Non-success
     """
 
-    def __init__(self, database_name: str = "base_populated.db", ignore_existing: bool = False):
+    def __init__(self, database_name: str = "base_populated.db",
+                 ignore_existing: bool = False, lower_memory: bool = False):
         self._database_name = database_name
         self._force_download = ignore_existing
+        self._low_memory = lower_memory
 
     def populate(self, year: int) -> None:
         """
@@ -71,10 +71,8 @@ class Populator:
             year: int           - the year of data to download
         """
         filename = f"data_{year}.gz"
-
         if self._check_if_download(filename):
             self._download_data(year, filename)
-
         with gz_open(filename, "r") as fd:
             lines = fd.readline().decode('utf-8')
             column_number = self._create_table(lines)
@@ -144,7 +142,7 @@ class Populator:
         data: list[byte like]   - a list of bytelike objects to be cleaned
         """
         for i in range(len(data)):
-            data[i] = data[i].decode("utf-8").replace("\" ", "\"").replace("\"", "").\
+            data[i] = data[i].decode("utf-8").replace("\" ", "").replace("\"", "").\
                 strip().replace(", ", ". ").split(',')
 
     def _insert_data(self, column_number: int, data: list, table_name: str = "DONATIONS"):
@@ -158,25 +156,34 @@ class Populator:
             table_name: str         - the table underwhich to enter the data.
                                         Default: "DONATIONS
         """
+
         self._clean_data(data)
         values = "?," * column_number
 
-        err_log = open("malformed.log", 'w')
+        good_data = []
+        bad_data = []
+        for i in range(len(data)):
+            if len(data[i]) != 46:
+                bad_data.append(f"Malformed Data: ::: {data[i]} :::\n")
+            else:
+                good_data.append(data[i])
 
-        for line in data:
-            try:
-                self._cur.execute(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", line)
-            except ProgrammingError:
-                # only so much data cleaning for version 1
-                err_log.write(f"Malformed Data: ::: {line} :::\n")
-        err_log.close()
+        with open("malformed.log", "w") as err_log:
+            err_log.writelines(bad_data)
+
+        self._cur.executemany(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", good_data)
 
     def __open__(self):
-        self._con = connect(self._database_name)
+
+        self._con = connect(self._database_name) if self._low_memory else connect(":memory:")
         self._cur = self._con.cursor()
 
     def __close__(self):
         self._con.commit()
+        if not self._low_memory:
+            disk_db = connect(self._database_name)
+            with disk_db:
+                self._con.backup(disk_db)
         self._con.close()
         self._con = None
 
