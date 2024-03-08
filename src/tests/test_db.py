@@ -17,3 +17,6 @@ def test_table_creation():
         for table in TABLES_MAP.keys():
             result = p._cur.execute(f"SELECT * from sqlite_master WHERE name='{table}'").fetchone()
             assert result is not None
+
+        result = p._cur.execute(f"SELECT name from sqlite_master").fetchall()
+        assert len(result) == len(list(TABLES_MAP.keys())) + 1  # only added for sqlite ROWID
