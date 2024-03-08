@@ -9,3 +9,7 @@
 !src/efp_populator.py
 !src/efp_cli.py
 !src/__init__.py
+
+!src/tests
+!src/tests/__init__.py
+!src/tests/test_db.py

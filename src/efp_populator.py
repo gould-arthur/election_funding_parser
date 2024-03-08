@@ -41,6 +41,16 @@ DATE_TO_URLS = lambda year: f"https://dataverse.harvard.edu/api/access/"\
                             f"datafile/:persistentId?persistentId=doi:10.7910/DVN/O5PX0B/{URLS[year]}"
 
 
+TABLES_MAP = {
+    "Transactions": [1, 0, 2, 3, 4, 5, 23],
+    "Contributor_Org": [5, 6, 44, 15, 21],  # still need location id from that table
+    "Contributor_Indv": [5, 6, 44, 15, 7, 8, 9, 10, 11, 12, 14, 19, 20, 32, 33, 34],  # above and this determined by element 13
+    "Recipient": [23, 22, 24, 25, 26, 27, 28, 31]
+    # "Location": [17, 16, 18]  # need to add an id
+}
+
+
+
 class Populator:
     """
     Responsible for populating a database.
@@ -81,19 +91,18 @@ class Populator:
         Args:
             year: int           - the year of data to download
         """
-        self.dummy_data()
-        return
         filename = f"data_{year}.gz"
         if self._check_if_download(filename):
             self._download_data(year, filename)
         with gz_open(filename, "r") as fd:
             lines = fd.readline().decode('utf-8')
             column_number = self._create_table(lines)
+            return
             lines = fd.readlines(5000 if self._low_memory else -1)
             while lines:
                 self._insert_data(column_number, lines)
                 lines = fd.readlines(5000 if self._low_memory else -1)
-        self.dummy_data()
+ 
 
     def _check_if_download(self, filename: str) -> bool:
         """
@@ -114,7 +123,7 @@ class Populator:
         except FileNotFoundError:
             return True
 
-    def _create_table(self, data: str, table_name: str = "DONATIONS") -> int:
+    def _create_table_old(self, data: str, table_name: str = "DONATIONS") -> int:
         """
         Creates a table in the opened database
 
@@ -130,6 +139,26 @@ class Populator:
         cols = ', '.join(cols)
         self._cur.execute(f"CREATE TABLE IF NOT EXISTS {table_name}({cols})")
         return column_number
+
+    def _create_table(self, data: str, table_name: str = "DONATIONS") -> int:
+        """
+        Creates a table in the opened database
+
+        Args:
+            data: str           - the first line of a csv, signifying the column names
+            table_name: str     - determines what the table will be names. Default: "DONATIONS"
+        """
+        cols = []
+        for col in data.split(','):
+            col = col.replace('"', '').replace(".", "_").strip()
+            cols.append(f"{col} {FIELDS.get(col, 'TEXT')}")
+
+        for table in TABLES_MAP.keys():
+            data = [cols[i] for i in TABLES_MAP[table]]
+            insert_data = ', '.join(data)
+            self._cur.execute(f"CREATE TABLE IF NOT EXISTS {table}({insert_data})")
+
+
 
     def _download_data(self, year: int, filename: str) -> None:
         """
