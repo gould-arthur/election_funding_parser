@@ -6,23 +6,18 @@ Date: 2024-03-07
 
 Data citation:
         Bonica, Adam, 2015, "Database on Ideology, Money in Politics, and Elections (DIME)",
-        https://doi.org/10.7910/DVN/O5PX0B, Harvard Dataverse, V3 
+        https://doi.org/10.7910/DVN/O5PX0B, Harvard Dataverse, V3
 """
 # minimizing imports as much as possible
 from requests import get as req_get
-from sqlite3 import connect, ProgrammingError
+from sqlite3 import connect
 from gzip import open as gz_open
-# did not use pandas to limit imports
+
+FIELDS = {"amount": "INTEGER", "bonica_cid": "INTEGER", "contributor_cfscore": "FLOAT",
+          "candidate_cfscore": "FLOAT", "transaction_id": "TEXT PRIMARY KEY"}
 
 
-FIELDS = {
-    "amount": "INTEGER", "bonica_cid": "INTEGER", "contributor_cfscore": "FLOAT",
-    "candidate_cfscore": "FLOAT", "transaction_id": "TEXT PRIMARY KEY"
-    }
-
-
-URLS = {
-        1980: "OQQ2NW",
+URLS = {1980: "OQQ2NW",
         1982: "CUDWEU",
         1984: "WDLQE5",
         1986: "JFDKGE",
@@ -39,12 +34,11 @@ URLS = {
         2008: "JHLIEZ",
         2010: "NXTDHV",
         2012: "YQGIZJ",
-        2014: "HDZZO7"
-
-    }
+        2014: "HDZZO7"}
 
 
-DATE_TO_URLS = lambda year: f"https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/O5PX0B/{URLS[year]}"
+DATE_TO_URLS = lambda year: f"https://dataverse.harvard.edu/api/access/"\
+                            f"datafile/:persistentId?persistentId=doi:10.7910/DVN/O5PX0B/{URLS[year]}"
 
 
 class Populator:
@@ -53,20 +47,21 @@ class Populator:
 
 
     Args:
-        database_name: str      - the database to which the Populator will create/connect. 
+        database_name: str      - the database to which the Populator will create/connect.
                                     Default: "base_populated.db"
         forced_download: bool   - determines whether the zipped data will be downloaded should
                                     it already exit. Default: False
-    
+
     Raises:
         ConnectionError:        - Occures when attempting to download gzip data returns code
                                     signifying Non-success
     """
 
-
-    def __init__(self, database_name: str = "base_populated.db", force_download: bool = False):
+    def __init__(self, database_name: str = "base_populated.db",
+                 ignore_existing: bool = False, lower_memory: bool = False):
         self._database_name = database_name
-        self._force_download = force_download
+        self._force_download = ignore_existing
+        self._low_memory = lower_memory
 
     def populate(self, year: int) -> None:
         """
@@ -76,17 +71,15 @@ class Populator:
             year: int           - the year of data to download
         """
         filename = f"data_{year}.gz"
-
         if self._check_if_download(filename):
             self._download_data(year, filename)
-
         with gz_open(filename, "r") as fd:
             lines = fd.readline().decode('utf-8')
             column_number = self._create_table(lines)
-            lines = fd.readlines(500)
+            lines = fd.readlines(5000 if self._low_memory else -1)
             while lines:
                 self._insert_data(column_number, lines)
-                lines = fd.readlines(500)
+                lines = fd.readlines(5000 if self._low_memory else -1)
 
     def _check_if_download(self, filename: str) -> bool:
         """
@@ -94,7 +87,7 @@ class Populator:
 
         Args:
             filename: str       - the filename for which to check
-        
+
         Returns:
             (bool)              - True if file should be downloaded, False otherwise
         """
@@ -131,12 +124,12 @@ class Populator:
         Args:
             year: int           - the year for which to download data
             filename: str       - name for which to store the file
-        
+
         Raises:
             KeyError:           - Occures when an invalid or unsupported year is passed
             ConnectionError     - Occures when gzipped file fails to download
         """
-        result = req_get(DATE_TO_URLS(1980), stream=True)
+        result = req_get(DATE_TO_URLS(year), stream=True)
         if result.status_code > 299:
             raise ConnectionError(f"Cannot Download information for year {year}")
         with open(filename, "wb") as fd:
@@ -149,8 +142,8 @@ class Populator:
         data: list[byte like]   - a list of bytelike objects to be cleaned
         """
         for i in range(len(data)):
-            data[i] = data[i].decode("utf-8").replace("\" ", "\"").replace("\"", "").\
-                        strip().replace(", ", ". ").split(',')
+            data[i] = data[i].decode("utf-8").replace("\" ", "").replace("\"", "").\
+                strip().replace(", ", ". ").split(',')
 
     def _insert_data(self, column_number: int, data: list, table_name: str = "DONATIONS"):
         """
@@ -163,25 +156,34 @@ class Populator:
             table_name: str         - the table underwhich to enter the data.
                                         Default: "DONATIONS
         """
+
         self._clean_data(data)
         values = "?," * column_number
 
-        err_log = open("malformed.log", 'w')
+        good_data = []
+        bad_data = []
+        for i in range(len(data)):
+            if len(data[i]) != 46:
+                bad_data.append(f"Malformed Data: ::: {data[i]} :::\n")
+            else:
+                good_data.append(data[i])
 
-        for line in data:
-            try:
-                self._cur.execute(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", line)
-            except ProgrammingError as e:
-                # only so much data cleaning for version 1
-                err_log.write(f"Malformed Data: ::: {line} :::\n")
-        err_log.close()
+        with open("malformed.log", "w") as err_log:
+            err_log.writelines(bad_data)
+
+        self._cur.executemany(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", good_data)
 
     def __open__(self):
-        self._con = connect(self._database_name)
+
+        self._con = connect(self._database_name) if self._low_memory else connect(":memory:")
         self._cur = self._con.cursor()
 
     def __close__(self):
         self._con.commit()
+        if not self._low_memory:
+            disk_db = connect(self._database_name)
+            with disk_db:
+                self._con.backup(disk_db)
         self._con.close()
         self._con = None
 
