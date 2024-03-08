@@ -31,14 +31,14 @@ Example for specifying low memory:
 This will ensure that the default process of holding as much data in memory as possible is not followed. This will often result in slower processing speeds. With smaller datasets, the run-time can be roughly equivalent or faster than the default. However, on larger sets, specifying "-l" will time-to-completion several times over.  
   
 Example for clean:
-```>python3 efp_cli.py -y 1980 -c```
+```>python3 efp_cli.py -y 1980 -c```  
 Setting the clean flag results in all but the downloaded file being deleted after running. This is mainly used for testing functionality and imports are working. The Downloaded data file will not be removed. \
 \
 Example for ignore existing:
-```>python3 efp_cli.py -y 1980 -i```
+```>python3 efp_cli.py -y 1980 -i```  
 Setting this flag tells the application to download the desired gzipped data file, even if it already exists.\
 \
-Example for output_db:
+Example for output_db:  
 ```>python3 efp_cli.py -y 1980 -o new.db```
 Specifying the output name will overwrite the default filename "base_populated.db" as the sql database destingation. In this case, it would be names "new.db"
 
