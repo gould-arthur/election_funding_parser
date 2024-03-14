@@ -91,10 +91,10 @@ class Populator:
             self._download_data(year, filename)
         with gz_open(filename, "r") as fd:
             lines = fd.readline().decode('utf-8')
-            column_number = self._create_table(lines)
+            self._create_table(lines)
             lines = fd.readlines(5000 if self._low_memory else -1)
             while lines:
-                self._insert_data(column_number, lines)
+                self._insert_data(lines)
                 lines = fd.readlines(5000 if self._low_memory else -1)
  
 
@@ -117,30 +117,12 @@ class Populator:
         except FileNotFoundError:
             return True
 
-    def _create_table_old(self, data: str, table_name: str = "DONATIONS") -> int:
+    def _create_table(self, data: str) -> None:
         """
         Creates a table in the opened database
 
         Args:
             data: str           - the first line of a csv, signifying the column names
-            table_name: str     - determines what the table will be names. Default: "DONATIONS"
-        """
-        cols = []
-        for col in data.split(','):
-            col = col.replace('"', '').replace(".", "_").strip()
-            cols.append(f"{col} {FIELDS.get(col, 'TEXT')}")
-        column_number = len(cols)
-        cols = ', '.join(cols)
-        self._cur.execute(f"CREATE TABLE IF NOT EXISTS {table_name}({cols})")
-        return column_number
-
-    def _create_table(self, data: str, table_name: str = "DONATIONS") -> int:
-        """
-        Creates a table in the opened database
-
-        Args:
-            data: str           - the first line of a csv, signifying the column names
-            table_name: str     - determines what the table will be names. Default: "DONATIONS"
         """
         cols = []
         for col in data.split(','):
@@ -152,8 +134,6 @@ class Populator:
             data[0] = data[0] + " PRIMARY KEY"
             insert_data = ', '.join(data)
             self._cur.execute(f"CREATE TABLE IF NOT EXISTS {table}({insert_data})")
-
-
 
     def _download_data(self, year: int, filename: str) -> None:
         """
@@ -183,25 +163,18 @@ class Populator:
             data[i] = data[i].decode("utf-8").replace("\" ", "").replace("\"", "").\
                 strip().replace(", ", ". ").split(',')
 
-    def _insert_data(self, column_number: int, data: list, table_name: str = "DONATIONS"):
+    def _insert_data(self, data: list):
         """
         Inserts data into database, under given table
 
         Args:
-            column_number: int      - number of columns in the table
             data: list[byte-like]   - a bytelike list containing. Each element is a row
                                         to enter into the database
-            table_name: str         - the table underwhich to enter the data.
-                                        Default: "DONATIONS
         """
 
         self._clean_data(data)
 
-
         bad_data = []
-        good_data = {i: [] for i in TABLES_MAP.keys() }
-
-
 
         for i in range(len(data)):
             if len(data[i]) != 46:
@@ -217,10 +190,6 @@ class Populator:
 
         with open("malformed.log", "w") as err_log:
             err_log.writelines(bad_data)
-
-        #self._cur.executemany(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", good_data)
-
-
 
     def __open__(self):
 

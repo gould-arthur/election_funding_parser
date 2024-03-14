@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from src.efp_populator import Populator, TABLES_MAP
 from os import path
-from sys import stderr
 from os import remove
 
 
@@ -21,10 +20,11 @@ def test_table_creation():
             result = p._cur.execute(f"SELECT * from sqlite_master WHERE name='{table}'").fetchone()
             assert result is not None
 
-        result = p._cur.execute(f"SELECT name from sqlite_master").fetchall()
-        #assert len(result) == len(list(TABLES_MAP.keys())) + 1  # one added for sqlite ROWID
+        result = [r[0] for r in p._cur.execute(f"SELECT name from sqlite_master").fetchall()]
+        for table in TABLES_MAP.keys():
+            assert table in result
 
-    #remove(db_name)
+    remove(db_name)
 
 
 def test_data_insert():
