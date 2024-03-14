@@ -14,7 +14,7 @@ from sqlite3 import connect
 from gzip import open as gz_open
 
 FIELDS = {"amount": "INTEGER", "bonica_cid": "INTEGER", "contributor_cfscore": "FLOAT",
-          "candidate_cfscore": "FLOAT", "transaction_id": "TEXT PRIMARY KEY"}
+          "candidate_cfscore": "FLOAT"}
 
 
 URLS = {1980: "OQQ2NW",
@@ -39,6 +39,21 @@ URLS = {1980: "OQQ2NW",
 
 DATE_TO_URLS = lambda year: f"https://dataverse.harvard.edu/api/access/"\
                             f"datafile/:persistentId?persistentId=doi:10.7910/DVN/O5PX0B/{URLS[year]}"
+
+
+TABLES_MAP = {
+    "Transactions": [1, 0, 2, 3, 4, 5, 23],
+    "Contributor_Org": [5, 6, 44, 15, 21],  # still need location id from that table
+    "Contributor_Indv": [5, 6, 44, 15, 7, 8, 9, 10, 11, 12, 14, 19, 20, 32, 33, 34],
+    "Recipient": [23, 22, 24, 25, 26, 27, 28, 31]
+    # "Location": [17, 16, 18]  # need to add an id
+}
+
+
+MAPPED_STRING = dict()
+for key in TABLES_MAP.keys():
+    MAPPED_STRING[key] = "?, " * TABLES_MAP[key].__len__()
+    MAPPED_STRING[key] = MAPPED_STRING[key][:-2]  # chop trailing ','
 
 
 class Populator:
@@ -75,10 +90,10 @@ class Populator:
             self._download_data(year, filename)
         with gz_open(filename, "r") as fd:
             lines = fd.readline().decode('utf-8')
-            column_number = self._create_table(lines)
+            self._create_table(lines)
             lines = fd.readlines(5000 if self._low_memory else -1)
             while lines:
-                self._insert_data(column_number, lines)
+                self._insert_data(lines)
                 lines = fd.readlines(5000 if self._low_memory else -1)
 
     def _check_if_download(self, filename: str) -> bool:
@@ -100,22 +115,23 @@ class Populator:
         except FileNotFoundError:
             return True
 
-    def _create_table(self, data: str, table_name: str = "DONATIONS") -> int:
+    def _create_table(self, data: str) -> None:
         """
         Creates a table in the opened database
 
         Args:
             data: str           - the first line of a csv, signifying the column names
-            table_name: str     - determines what the table will be names. Default: "DONATIONS"
         """
         cols = []
         for col in data.split(','):
             col = col.replace('"', '').replace(".", "_").strip()
             cols.append(f"{col} {FIELDS.get(col, 'TEXT')}")
-        column_number = len(cols)
-        cols = ', '.join(cols)
-        self._cur.execute(f"CREATE TABLE IF NOT EXISTS {table_name}({cols})")
-        return column_number
+
+        for table in TABLES_MAP.keys():
+            data = [cols[i] for i in TABLES_MAP[table]]
+            data[0] = data[0] + " PRIMARY KEY"
+            insert_data = ', '.join(data)
+            self._cur.execute(f"CREATE TABLE IF NOT EXISTS {table}({insert_data})")
 
     def _download_data(self, year: int, filename: str) -> None:
         """
@@ -145,33 +161,33 @@ class Populator:
             data[i] = data[i].decode("utf-8").replace("\" ", "").replace("\"", "").\
                 strip().replace(", ", ". ").split(',')
 
-    def _insert_data(self, column_number: int, data: list, table_name: str = "DONATIONS"):
+    def _insert_data(self, data: list):
         """
         Inserts data into database, under given table
 
         Args:
-            column_number: int      - number of columns in the table
             data: list[byte-like]   - a bytelike list containing. Each element is a row
                                         to enter into the database
-            table_name: str         - the table underwhich to enter the data.
-                                        Default: "DONATIONS
         """
 
         self._clean_data(data)
-        values = "?," * column_number
 
-        good_data = []
         bad_data = []
+
         for i in range(len(data)):
             if len(data[i]) != 46:
                 bad_data.append(f"Malformed Data: ::: {data[i]} :::\n")
-            else:
-                good_data.append(data[i])
+                continue
+            for key in TABLES_MAP.keys():
+                if key == "Contributor_Indv" and data[i][13] == "C":  # skip adding indv. cont. if contributor was org.
+                    continue
+                if key == "Contributor_Org" and data[i][13] != "C":  # skip adding org. cont. if contributor was indv.
+                    continue
+                self._cur.execute(f"INSERT OR IGNORE INTO {key} VALUES ({MAPPED_STRING[key]})",
+                                  [data[i][j] for j in TABLES_MAP[key]])
 
         with open("malformed.log", "w") as err_log:
             err_log.writelines(bad_data)
-
-        self._cur.executemany(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", good_data)
 
     def __open__(self):
 
