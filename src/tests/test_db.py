@@ -6,6 +6,7 @@ from os import remove
 
 CUR_DIR = path.abspath("./src/tests")
 
+
 def _log(any: any, blank: bool = False):
     fd = open(f"{CUR_DIR}/testing.log", "w" if blank else "a")
     print(any, file=fd, end='\n\n')
@@ -29,4 +30,3 @@ def test_table_creation():
 
 def test_data_insert():
     pass
-

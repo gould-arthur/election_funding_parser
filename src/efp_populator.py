@@ -44,7 +44,7 @@ DATE_TO_URLS = lambda year: f"https://dataverse.harvard.edu/api/access/"\
 TABLES_MAP = {
     "Transactions": [1, 0, 2, 3, 4, 5, 23],
     "Contributor_Org": [5, 6, 44, 15, 21],  # still need location id from that table
-    "Contributor_Indv": [5, 6, 44, 15, 7, 8, 9, 10, 11, 12, 14, 19, 20, 32, 33, 34],  # above and this determined by element 13
+    "Contributor_Indv": [5, 6, 44, 15, 7, 8, 9, 10, 11, 12, 14, 19, 20, 32, 33, 34],
     "Recipient": [23, 22, 24, 25, 26, 27, 28, 31]
     # "Location": [17, 16, 18]  # need to add an id
 }
@@ -78,7 +78,6 @@ class Populator:
         self._force_download = ignore_existing
         self._low_memory = lower_memory
 
-
     def populate(self, year: int) -> None:
         """
         Creates and populations a database given a year
@@ -96,7 +95,6 @@ class Populator:
             while lines:
                 self._insert_data(lines)
                 lines = fd.readlines(5000 if self._low_memory else -1)
- 
 
     def _check_if_download(self, filename: str) -> bool:
         """
