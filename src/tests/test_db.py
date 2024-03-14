@@ -2,6 +2,8 @@
 from src.efp_populator import Populator, TABLES_MAP
 from os import path
 from sys import stderr
+from os import remove
+
 
 CUR_DIR = path.abspath("./src/tests")
 
@@ -12,11 +14,19 @@ def _log(any: any, blank: bool = False):
 
 
 def test_table_creation():
-    with Populator(f"{CUR_DIR}/testing.db") as p:
+    db_name = f"{CUR_DIR}/testing.db"
+    with Populator(db_name) as p:
         p.populate(1980)
         for table in TABLES_MAP.keys():
             result = p._cur.execute(f"SELECT * from sqlite_master WHERE name='{table}'").fetchone()
             assert result is not None
 
         result = p._cur.execute(f"SELECT name from sqlite_master").fetchall()
-        assert len(result) == len(list(TABLES_MAP.keys())) + 1  # only added for sqlite ROWID
+        assert len(result) == len(list(TABLES_MAP.keys())) + 1  # one added for sqlite ROWID
+
+    #remove(db_name)
+
+
+def test_data_insert():
+    pass
+

@@ -50,6 +50,11 @@ TABLES_MAP = {
 }
 
 
+MAPPED_STRING = dict()
+for key in TABLES_MAP.keys():
+    MAPPED_STRING[key] = "?, " * TABLES_MAP[key].__len__()
+    MAPPED_STRING[key] = MAPPED_STRING[key][:-2]  # chop trailing ','
+
 
 class Populator:
     """
@@ -74,16 +79,6 @@ class Populator:
         self._low_memory = lower_memory
 
 
-    def dummy_data(self):
-        self._cur.execute(f"CREATE TABLE IF NOT EXISTS Dummy1(dummy1_id PRIMARY KEY, dummy2_id INTEGER, name TEXT)")
-        self._cur.execute(f"CREATE TABLE IF NOT EXISTS Dummy2(dummy2_id PRIMARY KEY, dummy1_id INTEGER, name TEXT)")
-
-        dummy = [[1, 1, "hi"], [2,1, "there"], [3, 2, "Marshel"]]
-        dummy2 = [[1,2, "meep"], [2, 3, "beep"], [3,1, "creep"]]
-        self._cur.executemany(f"INSERT OR IGNORE INTO Dummy1 VALUES (?, ?, ?)", dummy)
-        self._cur.executemany(f"INSERT OR IGNORE INTO Dummy2 VALUES (?, ?, ?)", dummy2)
-
-
     def populate(self, year: int) -> None:
         """
         Creates and populations a database given a year
@@ -97,7 +92,6 @@ class Populator:
         with gz_open(filename, "r") as fd:
             lines = fd.readline().decode('utf-8')
             column_number = self._create_table(lines)
-            return
             lines = fd.readlines(5000 if self._low_memory else -1)
             while lines:
                 self._insert_data(column_number, lines)
@@ -201,20 +195,27 @@ class Populator:
         """
 
         self._clean_data(data)
-        values = "?," * column_number
 
-        good_data = []
+
         bad_data = []
+        good_data = {i: [] for i in TABLES_MAP.keys() }
+
+
+
         for i in range(len(data)):
             if len(data[i]) != 46:
                 bad_data.append(f"Malformed Data: ::: {data[i]} :::\n")
-            else:
-                good_data.append(data[i])
+                continue
+            for key in TABLES_MAP.keys():
+                self._cur.execute(f"INSERT OR IGNORE INTO {key} VALUES ({MAPPED_STRING[key]})",
+                                  [data[i][j] for j in TABLES_MAP[key]])
 
         with open("malformed.log", "w") as err_log:
             err_log.writelines(bad_data)
 
-        self._cur.executemany(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", good_data)
+        #self._cur.executemany(f"INSERT OR IGNORE INTO {table_name} VALUES ({values[:-1]})", good_data)
+
+
 
     def __open__(self):
 
