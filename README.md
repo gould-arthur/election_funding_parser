@@ -38,7 +38,7 @@ Example for output_db: ```>python3 efp_cli.py -y 1980 -o new.db```
 Specifying the output name will overwrite the default filename "base_populated.db" as the sql database destingation. In this case, it would be names "new.db"
 
 
-#### Interacting through code
+### Interacting through code
 EFP's Populator object uses the with-open format
 ```python
 from efp_populator import Populator
@@ -57,7 +57,6 @@ p.close()
 ```
 
 ### Future Functionality
-- Breakout of singular table into improved scheme
 - Using Django, provide web-interface for parsing data
 - Create install for required libraries and dependencies
 - Containerize application using Docker
